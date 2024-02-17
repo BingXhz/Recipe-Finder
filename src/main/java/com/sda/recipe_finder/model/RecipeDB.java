@@ -1,15 +1,18 @@
 package com.sda.recipe_finder.model;
+
 import java.sql.*;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 import java.util.regex.Pattern;
 
-public class RecipeDB {
+public class RecipeDB extends Main {
     // Database connection details
     private static final String url = "jdbc:mysql://localhost:3306/recipes_cookbook";
     private static final String username = "root";
     private static final String password = "134679976431";
 
-    private static Connection connection;
+    static Connection connection;
+
     // Static block to initialize the connection
     static {
         try {
@@ -20,256 +23,79 @@ public class RecipeDB {
         }
     }
 
-    // Custom method to retrieve and print text data from the database
-    public static void printRecipeDetails(int recipeNumber) {
-        // Define the SQL query to fetch the details of the recipe based on its number
-        String sql = "SELECT dish_name, ingredients FROM ingredients WHERE dish_id = ?";
+    /////////////////////
+    // Custom Methods //
+    /////////////////////
 
-        try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            // Set the recipe number as a parameter in the prepared statement
-            statement.setInt(1, recipeNumber);
+    public static void selectFromAllRecipes(Scanner scanner) {
+        boolean returnToMainMenu = false;
+        while (!returnToMainMenu) {
+            System.out.print("\nUse a corresponding number to view it's details (enter 0 to go back): ");
 
-            // Execute the query and get the result set
-            ResultSet resultSet = statement.executeQuery();
+            try {
+                int recipeNumber = scanner.nextInt();
+                scanner.nextLine();
 
-            // Check if the result set has any rows (recipes)
-            if (resultSet.next()) {
-                // Retrieve the values of the recipe name and description columns
-                String recipeName = resultSet.getString("dish_name");
-                String recipeDescription = resultSet.getString("ingredients");
+                if (recipeNumber == 0) {
+                    returnToMainMenu = true;
+                } else {
+                    // Print details of the selected recipe
+                    RecipeDataManager.printRecipeDetails(recipeNumber);
 
-                // Print the details of the recipe
-                System.out.println("\n--- Recipe Details ---");
-                System.out.println("Name: " + recipeName);
-                System.out.println("Ingredients: " + recipeDescription);
-            } else {
-                // If no recipe is found for the given number, print a message
-                System.out.println("Recipe not found for the given number.");
+                    // Ask if the user wants to add this recipe to favorites
+                    System.out.print("Want to Add this Recipe to My Favorites? (yes/no): ");
+                    String addFavoriteChoice = scanner.nextLine().toLowerCase();
+
+                    if (addFavoriteChoice.equals("yes")) {
+                        addToFavorites(recipeNumber);
+                    } else {
+                        System.out.println("Recipe not Added to Favorites.");
+                        Main.allRecipes(scanner);
+                    }
+                }
+            } catch (InputMismatchException e) {
+                System.err.println("Invalid input! Please enter a number.");
+                scanner.nextLine();
             }
-        } catch (SQLException e) {
-            // Handle any SQL exceptions
-            System.err.println("Error fetching recipe details: " + e.getMessage());
         }
     }
 
-    public static void printAllDishes() {
-        // SQL query to select all columns from the "ingredients" table
-        String sql = "SELECT * FROM ingredients";
-
-        try {
-            // Create database connection
-            Connection connection = DriverManager.getConnection(url, username, password);
-
-            // Create statement
-            Statement statement = connection.createStatement();
-
-            // Execute query
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            // Process query results
-            while (resultSet.next()) {
-                // Retrieve data
-                int dishId = resultSet.getInt("dish_id");
-                String dishName = resultSet.getString("dish_name");
-
-                // Print data
-                System.out.println("Nr: " + dishId);
-                System.out.println("Recipe Name: " + dishName);
-            }
-
-            // Close resources
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            System.out.println("Connection failed! Error: " + e.getMessage());
-            e.printStackTrace();
+    public static void selectRecipes(Scanner scanner) {
+        boolean returnToMainMenu = false;
+        System.out.println();
+        System.out.println("--- My Favourites ---");
+        System.out.println();
+        for (int i = 0; i < favoritesList.size(); i++) {
+            int recipeNumber = favoritesList.get(i);
+            RecipeDataManager.printFavouriteRecipes(recipeNumber);
+            System.out.println("Enter " + (i + 1) + " to select this Recipe.");
         }
-    }
+        while (!returnToMainMenu) {
 
-    public static void printMainDishes() {
-        // SQL query to select all columns from the "maindish" table
-        String sql = "SELECT * FROM maindish";
+            System.out.println();
+            System.out.println("---------------------");
+            System.out.print("Use a corresponding number to Select from Favorites (enter 0 to go back): ");
+            System.out.println();
 
-        try {
-            // Create database connection
-            Connection connection = DriverManager.getConnection(url, username, password);
+            try {
+                int recipeNumber = scanner.nextInt();
+                scanner.nextLine();
 
-            // Create statement
-            Statement statement = connection.createStatement();
-
-            // Execute query
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            // Process query results
-            while (resultSet.next()) {
-                // Retrieve data
-                int dishId = resultSet.getInt("dish_id");
-                String category = resultSet.getString("category");
-                String dishName = resultSet.getString("dish_name");
-
-                // Print data
-                System.out.println("Nr: " + dishId);
-                System.out.println("Category: " + category);
-                System.out.println("Recipe Name: " + dishName);
+                if (recipeNumber == 0) {
+                    returnToMainMenu = true;
+                } else {
+                    // Check if the entered recipe number is valid
+                    if (recipeNumber <= favoritesList.size() && recipeNumber > 0) {
+                        int selectedRecipeId = favoritesList.get(recipeNumber - 1);
+                        RecipeDataManager.printRecipeDetails(selectedRecipeId);
+                    } else {
+                        System.out.println("Invalid recipe ID. Please select a valid number.");
+                    }
+                }
+            } catch (InputMismatchException e) {
+                System.err.println("Invalid input! Please enter a number.");
+                scanner.nextLine();
             }
-
-            // Close resources
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            System.out.println("Connection failed! Error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    public static void printBreakfastDishes() {
-        // SQL query to select all columns from the "breakfast" table
-        String sql = "SELECT * FROM breakfast";
-
-        try {
-            // Create database connection
-            Connection connection = DriverManager.getConnection(url, username, password);
-
-            // Create statement
-            Statement statement = connection.createStatement();
-
-            // Execute query
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            // Process query results
-            while (resultSet.next()) {
-                // Retrieve data
-                int dishId = resultSet.getInt("dish_id");
-                String category = resultSet.getString("category");
-                String dishName = resultSet.getString("dish_name");
-
-                // Print data
-                System.out.println("Nr: " + dishId);
-                System.out.println("Category: " + category);
-                System.out.println("Recipe Name: " + dishName);
-            }
-
-            // Close resources
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            System.out.println("Connection failed! Error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    public static void printDesserts() {
-        // SQL query to select all columns from the "desserts" table
-        String sql = "SELECT * FROM desserts";
-
-        try {
-            // Create database connection
-            Connection connection = DriverManager.getConnection(url, username, password);
-
-            // Create statement
-            Statement statement = connection.createStatement();
-
-            // Execute query
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            // Process query results
-            while (resultSet.next()) {
-                // Retrieve data
-                int dishId = resultSet.getInt("dish_id");
-                String category = resultSet.getString("category");
-                String dishName = resultSet.getString("dish_name");
-
-                // Print data
-                System.out.println("Nr: " + dishId);
-                System.out.println("Category: " + category);
-                System.out.println("Recipe Name: " + dishName);
-            }
-
-            // Close resources
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            System.out.println("Connection failed! Error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    public static void printSoupDishes() {
-        // SQL query to select all columns from the "soups" table
-        String sql = "SELECT * FROM soups";
-
-        try {
-            // Create database connection
-            Connection connection = DriverManager.getConnection(url, username, password);
-
-            // Create statement
-            Statement statement = connection.createStatement();
-
-            // Execute query
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            // Process query results
-            while (resultSet.next()) {
-                // Retrieve data
-                int dishId = resultSet.getInt("dish_id");
-                String category = resultSet.getString("category");
-                String dishName = resultSet.getString("dish_name");
-
-                // Print data
-                System.out.println("Nr: " + dishId);
-                System.out.println("Category: " + category);
-                System.out.println("Recipe Name: " + dishName);
-            }
-
-            // Close resources
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            System.out.println("Connection failed! Error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    public static void printSalads() {
-        // SQL query to select all columns from the "salads" table
-        String sql = "SELECT * FROM salads";
-
-        try {
-            // Create database connection
-            Connection connection = DriverManager.getConnection(url, username, password);
-
-            // Create statement
-            Statement statement = connection.createStatement();
-
-            // Execute query
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            // Process query results
-            while (resultSet.next()) {
-                // Retrieve data
-                int dishId = resultSet.getInt("dish_id");
-                String category = resultSet.getString("category");
-                String dishName = resultSet.getString("dish_name");
-
-                // Print data
-                System.out.println("Nr: " + dishId);
-                System.out.println("Category: " + category);
-                System.out.println("Recipe Name: " + dishName);
-            }
-
-            // Close resources
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            System.out.println("Connection failed! Error: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -277,7 +103,7 @@ public class RecipeDB {
         try {
             Scanner scanner = new Scanner(System.in);
             System.out.println("Enter search query:");
-            String query = scanner.nextLine().toLowerCase(); // Convert query to lowercase
+            String query = scanner.nextLine().toLowerCase();
 
             // Preprocess the query for regex
             query = Pattern.quote(query);
@@ -291,7 +117,7 @@ public class RecipeDB {
 
                 // Process the results
                 while (resultSet.next()) {
-                    String columnValue = resultSet.getString("dish_name").toLowerCase(); // Convert to lowercase for case-insensitive comparison
+                    String columnValue = resultSet.getString("dish_name").toLowerCase();
 
                     // Create regex pattern to match the query
                     Pattern pattern = Pattern.compile("\\b" + query + "\\b", Pattern.CASE_INSENSITIVE);
@@ -308,7 +134,98 @@ public class RecipeDB {
         }
     }
 
-    public static Connection getConnection() {
-        return connection;
+    public static void searchByIngredient() {
+        try {
+            Scanner scanner = new Scanner(System.in);
+            System.out.println("Enter search query:");
+            String query = scanner.nextLine().toLowerCase();
+
+            query = Pattern.quote(query);
+
+            String sql = "SELECT * FROM ingredients";
+
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                ResultSet resultSet = statement.executeQuery();
+
+                while (resultSet.next()) {
+                    String columnValue = resultSet.getString("ingredients").toLowerCase();
+
+                    Pattern pattern = Pattern.compile("\\b" + query + "\\b", Pattern.CASE_INSENSITIVE);
+
+                    if (pattern.matcher(columnValue).find()) {
+                        System.out.println();
+                        System.out.println("Match found in row: " + resultSet.getString("dish_id"));
+                        System.out.println("Category: " + resultSet.getString("category"));
+                        System.out.println("Name: " + resultSet.getString("dish_name"));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
+
+    public static void searchByCategory(Scanner scanner) {
+        System.out.println("\nSearch inside a Category:");
+        System.out.println("\t1 - Main Dishes");
+        System.out.println("\t2 - Breakfast");
+        System.out.println("\t3 - Desserts");
+        System.out.println("\t4 - Soups");
+        System.out.println("\t5 - Salads");
+
+        // Prompt user for input
+        System.out.print("Enter your choice: ");
+        try {
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            // Process user choice
+            switch (choice) {
+                case 1:
+                    System.out.println("Performing search for Main Dishes...");
+                    RecipeDataManager.printMainDishes();
+                    break;
+                case 2:
+                    System.out.println("Performing search for Breakfast...");
+                    RecipeDataManager.printBreakfastDishes();
+                    break;
+                case 3:
+                    System.out.println("Performing search for Desserts...");
+                    RecipeDataManager.printDesserts();
+                    break;
+                case 4:
+                    System.out.println("Performing search for Soups...");
+                    RecipeDataManager.printSoupDishes();
+                    break;
+                case 5:
+                    System.out.println("Performing search for Salads...");
+                    RecipeDataManager.printSalads();
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please enter a number from the menu.");
+            }
+        } catch (InputMismatchException e) {
+            System.err.println("Invalid input! Please enter a number.");
+            scanner.nextLine();
+        }
+    }
+
+    static void addToFavorites(int recipeNumber) {
+        if (!favoritesList.contains(recipeNumber)) {
+            favoritesList.add(recipeNumber);
+            System.out.println("Recipe successfully added to My Favourites!");
+        } else {
+            System.out.println("Recipe already in Favorites!");
+        }
+    }
+
+    static void deleteFromFavorites(Integer recipeNumber) {
+        if (favoritesList.contains(recipeNumber)) {
+            favoritesList.remove(recipeNumber);
+            System.out.println("Recipe removed from Favorites!");
+        } else {
+            System.out.println("Recipe is not in Favorites!");
+        }
+    }
+
 }
